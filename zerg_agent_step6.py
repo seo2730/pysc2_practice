@@ -1,3 +1,4 @@
+# 필수모듈 불러오기
 from pysc2.agents import base_agent
 from pysc2.env import sc2_env
 from pysc2.lib import actions, features, units
@@ -5,6 +6,7 @@ from absl import app
 import random
 
 class ZergAgent(base_agent.BaseAgent):
+  # 리스트 중 첫번쨰 유닛이 원하는 타입인지 체크함
   def unit_type_is_selected(self, obs, unit_type):
     if (len(obs.observation.single_select) > 0 and
         obs.observation.single_select[0].unit_type == unit_type):
@@ -16,13 +18,16 @@ class ZergAgent(base_agent.BaseAgent):
 
     return False
 
+  # 리스트 중 유닛을 변수로 저장
   def get_units_by_type(self, obs, unit_type):
     return [unit for unit in obs.observation.feature_units
             if unit.unit_type == unit_type]
 
+  # 해당 행동이 가능한지 체크
   def can_do(self, obs, action):
     return action in obs.observation.available_actions
 
+  # 행동하는 함수 (action)
   def step(self, obs):
     super(ZergAgent, self).step(obs)
 
@@ -42,13 +47,17 @@ class ZergAgent(base_agent.BaseAgent):
         return actions.FUNCTIONS.select_point("select_all_type", (drone.x,
                                                                   drone.y))
 
+    # 라바 선택가 되었다면
     if self.unit_type_is_selected(obs, units.Zerg.Larva):
+      # 인구 수가 체크
       free_supply = (obs.observation.player.food_cap -
                      obs.observation.player.food_used)
+      # 인구 수가 부족하면 오버로드 추가
       if free_supply == 0:
         if self.can_do(obs, actions.FUNCTIONS.Train_Overlord_quick.id):
           return actions.FUNCTIONS.Train_Overlord_quick("now")
 
+      # 저글링 소환
       if self.can_do(obs, actions.FUNCTIONS.Train_Zergling_quick.id):
         return actions.FUNCTIONS.Train_Zergling_quick("now")
 
@@ -56,8 +65,7 @@ class ZergAgent(base_agent.BaseAgent):
     if len(larvae) > 0:
       larva = random.choice(larvae)
 
-      return actions.FUNCTIONS.select_point("select_all_type", (larva.x,
-                                                                larva.y))
+      return actions.FUNCTIONS.select_point("select_all_type", (larva.x, larva.y))
 
     return actions.FUNCTIONS.no_op()
 

@@ -1,3 +1,4 @@
+# 필수모듈 불러오기
 from pysc2.agents import base_agent
 from pysc2.env import sc2_env
 from pysc2.lib import actions, features, units
@@ -8,8 +9,10 @@ class ZergAgent(base_agent.BaseAgent):
   def __init__(self):
     super(ZergAgent, self).__init__()
     
+    # 공격 관련 변수
     self.attack_coordinates = None
 
+  # 리스트 중 첫번쨰 유닛이 원하는 타입인지 체크함
   def unit_type_is_selected(self, obs, unit_type):
     if (len(obs.observation.single_select) > 0 and
         obs.observation.single_select[0].unit_type == unit_type):
@@ -21,16 +24,20 @@ class ZergAgent(base_agent.BaseAgent):
     
     return False
 
+  # 리스트 중 유닛을 변수로 저장
   def get_units_by_type(self, obs, unit_type):
     return [unit for unit in obs.observation.feature_units
             if unit.unit_type == unit_type]
   
+  # 해당 행동이 가능한지 체크
   def can_do(self, obs, action):
     return action in obs.observation.available_actions
 
+  # 행동하는 함수 (action)
   def step(self, obs):
     super(ZergAgent, self).step(obs)
     
+    # 첫 스텝이라면 -> 우리 유닛들의 중심점 좌표를 구함
     if obs.first():
       player_y, player_x = (obs.observation.feature_minimap.player_relative ==
                             features.PlayerRelative.SELF).nonzero()
@@ -43,12 +50,13 @@ class ZergAgent(base_agent.BaseAgent):
         self.attack_coordinates = (12, 16)
 
     zerglings = self.get_units_by_type(obs, units.Zerg.Zergling)
+    # 일정 저글링 수 모이면 공격
     if len(zerglings) >= 10:
       if self.unit_type_is_selected(obs, units.Zerg.Zergling):
         if self.can_do(obs, actions.FUNCTIONS.Attack_minimap.id):
           return actions.FUNCTIONS.Attack_minimap("now",
                                                   self.attack_coordinates)
-
+      # 공격 지시 (부대 선정인거 같은데 더 찾아보자)
       if self.can_do(obs, actions.FUNCTIONS.select_army.id):
         return actions.FUNCTIONS.select_army("select")
 
@@ -65,8 +73,7 @@ class ZergAgent(base_agent.BaseAgent):
       if len(drones) > 0:
         drone = random.choice(drones)
 
-        return actions.FUNCTIONS.select_point("select_all_type", (drone.x,
-                                                                  drone.y))
+        return actions.FUNCTIONS.select_point("select_all_type", (drone.x, drone.y))
     
     if self.unit_type_is_selected(obs, units.Zerg.Larva):
       free_supply = (obs.observation.player.food_cap -
@@ -82,8 +89,7 @@ class ZergAgent(base_agent.BaseAgent):
     if len(larvae) > 0:
       larva = random.choice(larvae)
       
-      return actions.FUNCTIONS.select_point("select_all_type", (larva.x,
-                                                                larva.y))
+      return actions.FUNCTIONS.select_point("select_all_type", (larva.x, larva.y))
     
     return actions.FUNCTIONS.no_op()
 
