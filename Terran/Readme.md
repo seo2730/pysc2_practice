@@ -3,3 +3,6 @@
 
 # version
 pandas : 1.5.3
+
+# 조사
+collections.namedtuple()

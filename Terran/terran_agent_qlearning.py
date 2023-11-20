@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 
 from pysc2.agents import base_agent
-from pysc2.lib import actions
-from pysc2.lib import features
+from pysc2.env import sc2_env
+from pysc2.lib import actions, features, units
+from absl import app
 
 _NO_OP = actions.FUNCTIONS.no_op.id
 _SELECT_POINT = actions.FUNCTIONS.select_point.id
@@ -111,6 +112,11 @@ class SmartAgent(base_agent.BaseAgent):
         self.previous_action = None
         self.previous_state = None
 
+    # 리스트 중 유닛을 변수로 저장
+    def get_units_by_type(self, obs, unit_type):
+        return [unit for unit in obs.observation['feature_units']
+            if unit.unit_type == unit_type]
+
     def transformLocation(self, x, x_distance, y, y_distance):
         if not self.base_top_left:
             return [x - x_distance, y - y_distance]
@@ -120,18 +126,24 @@ class SmartAgent(base_agent.BaseAgent):
     def step(self, obs):
         super(SmartAgent, self).step(obs)
         temp = obs.observation['single_select']
-        # print(temp)
+        print(temp)
         player_y, player_x = (obs.observation['feature_minimap'][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
         self.base_top_left = 1 if player_y.any() and player_y.mean() <= 31 else 0
 
         unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
-        print(type(features.SCREEN_FEATURES.unit_type))
-        depot_y, depot_x = (unit_type == _TERRAN_SUPPLY_DEPOT).nonzero()
-        supply_depot_count = 1 if depot_y.any() else 0
-        # print(depot_y)
-        
-        barracks_y, barracks_x = (unit_type == _TERRAN_BARRACKS).nonzero()
-        barracks_count = 1 if barracks_y.any() else 0
+
+        #### Former Code ####
+        # depot_y, depot_x = (unit_type == _TERRAN_SUPPLY_DEPOT).nonzero()
+        # supply_depot_count = 1 if depot_y.any() else 0
+
+        # barracks_y, barracks_x = (unit_type == _TERRAN_BARRACKS).nonzero()
+        # barracks_count = 1 if barracks_y.any() else 0
+        #####################
+        #### Modified Code ####
+        supply_depot_count=len(self.get_units_by_type(obs,units.Terran.SupplyDepot))
+
+        barracks_count=len(self.get_units_by_type(obs,units.Terran.Barracks))
+        ########################
 
         supply_limit = obs.observation['player'][4]
         army_supply = obs.observation['player'][5]
@@ -167,19 +179,6 @@ class SmartAgent(base_agent.BaseAgent):
 
         if smart_action == ACTION_DO_NOTHING:
             return actions.FunctionCall(_NO_OP, [])
-        
-        elif smart_action == ACTION_SELECT_COMMANDER:
-            unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
-            unit_y, unit_x = (unit_type == _TERRAN_COMMANDCENTER).nonzero()
-
-            if unit_y.any():
-                target = [int(unit_x.mean()), int(unit_y.mean())]
-
-                return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
-
-        elif smart_action == ACTION_BUILD_SCV:
-            if _TRAIN_SCV in obs.observation['available_actions']:
-                return actions.FunctionCall(_TRAIN_SCV, [_QUEUED])
             
         elif smart_action == ACTION_SELECT_SCV:
             unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
@@ -192,33 +191,60 @@ class SmartAgent(base_agent.BaseAgent):
                 return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
 
         elif smart_action == ACTION_BUILD_SUPPLY_DEPOT:
+            #### Former Code ####
+            # if _BUILD_SUPPLY_DEPOT in obs.observation['available_actions']:
+            #     unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
+            #     unit_y, unit_x = (unit_type == _TERRAN_COMMANDCENTER).nonzero()
+
+            #     if unit_y.any():
+            #         # 해당 함수는 위치를 1개만 뽑으므로 서플라이가 1개만 건설됨
+            #         target = self.transformLocation(int(unit_x.mean()), 0, int(unit_y.mean()), 20)
+
+            #         return actions.FunctionCall(_BUILD_SUPPLY_DEPOT, [_NOT_QUEUED, target])
+            ######################
+            #### Modified Code ####
             if _BUILD_SUPPLY_DEPOT in obs.observation['available_actions']:
-                unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
-                unit_y, unit_x = (unit_type == _TERRAN_COMMANDCENTER).nonzero()
+                x = random.randint(0, 64)
+                y = random.randint(0, 64)
 
-                if unit_y.any():
-                    target = self.transformLocation(int(unit_x.mean()), 0, int(unit_y.mean()), 20)
-
-                    return actions.FunctionCall(_BUILD_SUPPLY_DEPOT, [_NOT_QUEUED, target])
-
+                return actions.FunctionCall(_BUILD_SUPPLY_DEPOT, [_NOT_QUEUED, (x,y)])
+            ########################
         elif smart_action == ACTION_BUILD_BARRACKS:
+            #### Former Code ####
+            # if _BUILD_BARRACKS in obs.observation['available_actions']:
+            #     unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
+            #     unit_y, unit_x = (unit_type == _TERRAN_COMMANDCENTER).nonzero()
+
+            #     if unit_y.any():
+            #         # 해당 함수는 위치를 1개만 뽑으므로 배럭이 1개만 건설됨
+            #         target = self.transformLocation(int(unit_x.mean()), 20, int(unit_y.mean()), 0)
+
+            #         return actions.FunctionCall(_BUILD_BARRACKS, [_NOT_QUEUED, target])
+            ######################   
+            #### Modified Code ####
             if _BUILD_BARRACKS in obs.observation['available_actions']:
-                unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
-                unit_y, unit_x = (unit_type == _TERRAN_COMMANDCENTER).nonzero()
+                x = random.randint(0, 64)
+                y = random.randint(0, 64)
 
-                if unit_y.any():
-                    target = self.transformLocation(int(unit_x.mean()), 20, int(unit_y.mean()), 0)
-
-                    return actions.FunctionCall(_BUILD_BARRACKS, [_NOT_QUEUED, target])
-
+                return actions.FunctionCall(_BUILD_BARRACKS, [_NOT_QUEUED, (x,y)])
+            ########################
         elif smart_action == ACTION_SELECT_BARRACKS:
-            unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
-            unit_y, unit_x = (unit_type == _TERRAN_BARRACKS).nonzero()
+            #### Former Code ####
+            # unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
+            # unit_y, unit_x = (unit_type == _TERRAN_BARRACKS).nonzero()
 
-            if unit_y.any():
-                target = [int(unit_x.mean()), int(unit_y.mean())]
+            # if unit_y.any():
+            #     target = [int(unit_x.mean()), int(unit_y.mean())]
 
-                return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
+            #     return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
+            #######################
+            #### Modified Code ####
+            barrackses = self.get_units_by_type(obs,units.Terran.Barracks)
+            if len(barrackses)>0:
+                baraacke = random.choice(barrackses)
+
+                return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, (baraacke.x,baraacke.y)])
+            ########################
 
         elif smart_action == ACTION_BUILD_MARINE:
             if _TRAIN_MARINE in obs.observation['available_actions']:
@@ -234,5 +260,52 @@ class SmartAgent(base_agent.BaseAgent):
                     return actions.FunctionCall(_ATTACK_MINIMAP, [_NOT_QUEUED, [39, 45]])
 
                 return actions.FunctionCall(_ATTACK_MINIMAP, [_NOT_QUEUED, [21, 24]])
+            
+        elif smart_action == ACTION_SELECT_COMMANDER:
+            unit_type = obs.observation['feature_screen'][_UNIT_TYPE]
+            unit_y, unit_x = (unit_type == _TERRAN_COMMANDCENTER).nonzero()
+
+            if unit_y.any():
+                target = [int(unit_x.mean()), int(unit_y.mean())]
+
+                return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
+
+        elif smart_action == ACTION_BUILD_SCV:
+            if _TRAIN_SCV in obs.observation['available_actions']:
+                return actions.FunctionCall(_TRAIN_SCV, [_QUEUED])
 
         return actions.FunctionCall(_NO_OP, [])
+    
+
+def main(unused_argv):
+  agent = SmartAgent()
+  try:
+    while True:
+      with sc2_env.SC2Env(
+          map_name="Simple64",
+          players=[sc2_env.Agent(sc2_env.Race.terran),
+                   sc2_env.Bot(sc2_env.Race.random,
+                               sc2_env.Difficulty.very_easy)],
+          agent_interface_format=features.AgentInterfaceFormat(
+              feature_dimensions=features.Dimensions(screen=64, minimap=64),
+              use_feature_units=True),
+          step_mul=16,
+          game_steps_per_episode=0,
+          visualize=True) as env:
+          
+        agent.setup(env.observation_spec(), env.action_spec())
+        
+        timesteps = env.reset()
+        agent.reset()
+        
+        while True:
+          step_actions = [agent.step(timesteps[0])]
+          if timesteps[0].last():
+            break
+          timesteps = env.step(step_actions)
+      
+  except KeyboardInterrupt:
+    pass
+  
+if __name__ == "__main__":
+  app.run(main)
